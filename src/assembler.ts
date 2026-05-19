@@ -129,6 +129,7 @@ export interface AssembledContext {
   specVersion: number;
   /** 0 = full, 1 = shrunk lists, 2 = minimal */
   shrinkLevel: number;
+  tokenBudgetOverrides?: Partial<Record<string, number>>;
 }
 
 export function estimateTokens(text: string): number {

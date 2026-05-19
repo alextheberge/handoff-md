@@ -2,7 +2,6 @@ import * as fs from "fs";
 import * as path from "path";
 import {
   type HandoffCache,
-  cacheFilePath,
   fingerprintCi,
   fingerprintConfig,
   fingerprintGit,
@@ -11,6 +10,7 @@ import {
   fingerprintStructure,
   fingerprintWorkspace,
   loadCache,
+  saveCache,
 } from "./cache";
 import { execWithWarning } from "./utils/exec";
 
@@ -21,9 +21,7 @@ export function saveHandoffCache(cwd: string, outputPath: string, tokenEstimate:
     outputPath,
     tokenEstimate,
   };
-  const dir = path.join(cwd, ".handoff");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(cacheFilePath(cwd), JSON.stringify(cache, null, 2), "utf-8");
+  saveCache(cwd, cache);
 }
 
 function extractSection(content: string, heading: string): string[] {
@@ -36,12 +34,6 @@ function extractSection(content: string, heading: string): string[] {
     out.push(lines[i]);
   }
   return out;
-}
-
-function diffLines(before: string[], after: string[]): string[] {
-  const b = new Set(before.map((l) => l.trim()).filter(Boolean));
-  const added = after.filter((l) => l.trim() && !b.has(l.trim()));
-  return added;
 }
 
 export function runDiff(cwd: string, outputPath: string): void {
@@ -96,9 +88,11 @@ export function runDiff(cwd: string, outputPath: string): void {
     const stat = fs.statSync(outputPath);
     sections.push(`## HANDOFF file (mtime ${stat.mtime.toISOString()})\n`);
 
-    const nowBefore = extractSection(content, "## Right now");
-    sections.push("### Right now (stored file)\n");
-    sections.push(nowBefore.slice(0, 8).join("\n") || "(empty)\n");
+    const nowLines = extractSection(content, "## Right now");
+    if (nowLines.length > 0) {
+      sections.push("### Right now (stored)\n");
+      sections.push(`${nowLines.slice(0, 6).join("\n")}\n`);
+    }
   }
 
   console.log(sections.join("\n"));

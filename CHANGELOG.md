@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4.1
+
+### Fixed
+
+- Git porcelain path parsing in `## Right now` (no more truncated filenames like `EADME.md`)
+- `.github/workflows` no longer hidden when walking the tree (dot-path ignore uses basename)
+- `## Right now` always includes at least one bullet (non-git repos, empty state)
+- Config `tokenBudget` overrides now apply in the renderer
+- Cache save unified via `saveCache`
+
+### Added
+
+- Unknown `--profile` emits a warning
+- Tests for path parsing, gitignore walking, and `check` command
+
 ## 1.4.0
 
 ### Added

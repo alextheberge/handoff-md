@@ -5,16 +5,23 @@ export interface NowBullet {
   priority: number;
 }
 
-function parseChangedPath(line: string): string {
-  const trimmed = line.trim();
-  if (trimmed.length >= 3) return trimmed.slice(3).trim();
-  return trimmed;
+/** Parse path from `git status --porcelain` line (XY + path, handles renames). */
+export function parseChangedPath(line: string): string {
+  // Porcelain: XY + space + path — do not trimStart or status columns collapse (e.g. " M file")
+  const match = line.trimEnd().match(/^(.{2})\s+(.+)$/);
+  if (!match) return line.trim();
+  let path = match[2].trim();
+  const arrow = path.lastIndexOf(" -> ");
+  if (arrow !== -1) {
+    path = path.slice(arrow + 4).trim();
+  }
+  return path;
 }
 
 function isRecentDate(dateStr: string, hours = 24): boolean {
   const parsed = Date.parse(dateStr.includes("T") ? dateStr : `${dateStr}T12:00:00Z`);
   if (Number.isNaN(parsed)) return false;
-  return parsed >= Date.now() - hours * 60 * 60 * 1000;
+  return parsed >= Date.now() - hours * 24 * 60 * 60 * 1000;
 }
 
 export function synthesizeNow(ctx: AssembledContext): NowBullet[] {
@@ -76,10 +83,19 @@ export function synthesizeNow(ctx: AssembledContext): NowBullet[] {
     }
   }
 
-  if (git?.lastMerge && bullets.every((b) => !b.text.includes("merge"))) {
+  if (git?.lastMerge && bullets.every((b) => !b.text.toLowerCase().includes("merge"))) {
     bullets.push({
       priority: 60,
       text: `Last merge: \`${git.lastMerge.hash}\` ${git.lastMerge.message}`,
+    });
+  }
+
+  if (bullets.length === 0) {
+    bullets.push({
+      priority: 20,
+      text: git
+        ? "Repository has no recent git activity to summarize."
+        : "Not a git repository — run inside a git repo for branch and commit context.",
     });
   }
 

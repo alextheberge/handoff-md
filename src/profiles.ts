@@ -25,6 +25,7 @@ const PROFILES: Record<ProfileName, ProfileSettings> = {
   },
   ci: {
     format: "compact",
+    shrinkLevel: 1,
     sections: {
       stack: true,
       scripts: true,
@@ -51,6 +52,10 @@ const PROFILES: Record<ProfileName, ProfileSettings> = {
     shrinkLevel: 0,
   },
 };
+
+export function isKnownProfile(name: string): boolean {
+  return name === "default" || name in PROFILES;
+}
 
 export function resolveProfile(name?: string): ProfileSettings {
   if (!name || name === "default") return {};

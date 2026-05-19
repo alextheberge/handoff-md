@@ -22,7 +22,7 @@ function isRecentMerge(isoDate: string, days = 14): boolean {
 }
 
 function buildSections(ctx: AssembledContext): RenderedSection[] {
-  const budget = getBudget(ctx.format);
+  const budget = getBudget(ctx.format, ctx.tokenBudgetOverrides);
   const shrink = ctx.shrinkLevel;
   const out: RenderedSection[] = [];
 

@@ -24,7 +24,7 @@ import {
 } from "./cache";
 import { loadHandoffConfig, mergeSections, resolveFormat } from "./config-file";
 import { readOverlay } from "./overlay";
-import { mergeProfileSections, resolveProfile } from "./profiles";
+import { isKnownProfile, mergeProfileSections, resolveProfile } from "./profiles";
 import { renderHandoff } from "./renderer";
 import { HANDOFF_SPEC_VERSION } from "./spec";
 import { resolveTimestamp } from "./time";
@@ -112,6 +112,11 @@ export function runHandoff(options: RunHandoffOptions): HandoffResult {
   if (options.noNow) sections = { ...sections, now: false };
   if (options.noGithub) sections = { ...sections, github: false };
   if (fileConfig.github === true) sections = { ...sections, github: true };
+
+  const profileName = options.profile ?? fileConfig.profile;
+  if (profileName && !isKnownProfile(profileName)) {
+    warnings.push(`Unknown profile "${profileName}" — using default`);
+  }
 
   const useCache = !options.noCache;
   const cache: HandoffCache | null = useCache ? loadCache(cwd) : null;
@@ -265,6 +270,7 @@ export function runHandoff(options: RunHandoffOptions): HandoffResult {
     sections,
     specVersion: HANDOFF_SPEC_VERSION,
     shrinkLevel,
+    tokenBudgetOverrides: fileConfig.tokenBudget,
   };
 
   const markdown = renderHandoff(ctx);

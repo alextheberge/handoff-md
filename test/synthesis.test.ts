@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AssembledContext } from "../src/assembler";
 import { DEFAULT_SECTIONS } from "../src/assembler";
-import { synthesizeNow } from "../src/synthesis/now";
+import { parseChangedPath, synthesizeNow } from "../src/synthesis/now";
 
 function ctx(partial: Partial<AssembledContext>): AssembledContext {
   return {
@@ -29,6 +29,18 @@ function ctx(partial: Partial<AssembledContext>): AssembledContext {
     ...partial,
   };
 }
+
+describe("parseChangedPath", () => {
+  it("parses standard porcelain lines", () => {
+    expect(parseChangedPath(" M README.md")).toBe("README.md");
+    expect(parseChangedPath("MM src/foo.ts")).toBe("src/foo.ts");
+    expect(parseChangedPath("?? new-file.ts")).toBe("new-file.ts");
+  });
+
+  it("handles renames", () => {
+    expect(parseChangedPath("R  old.ts -> new.ts")).toBe("new.ts");
+  });
+});
 
 describe("synthesizeNow", () => {
   it("reports merge conflicts with highest priority", () => {
@@ -78,5 +90,11 @@ describe("synthesizeNow", () => {
       }),
     );
     expect(bullets.length).toBeLessThanOrEqual(5);
+  });
+
+  it("always returns at least one bullet without git", () => {
+    const bullets = synthesizeNow(ctx({ git: null }));
+    expect(bullets.length).toBeGreaterThan(0);
+    expect(bullets[0].text).toContain("git");
   });
 });

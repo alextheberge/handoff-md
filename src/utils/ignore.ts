@@ -13,26 +13,33 @@ const FALLBACK_IGNORE = new Set([
   ".handoff",
 ]);
 
+const ALLOWED_DOT_DIRS = new Set([".github", ".cursor"]);
+
 export function isIgnored(
   cwd: string,
-  name: string,
+  relativePath: string,
   isDir: boolean,
   extraIgnoreDirs: string[] = [],
   useGit = true,
 ): boolean {
-  if (name.startsWith(".") && name !== ".env.example") {
-    if (name !== ".github") return true;
+  const base = path.basename(relativePath);
+
+  if (FALLBACK_IGNORE.has(base) || extraIgnoreDirs.includes(base)) {
+    return true;
   }
-  if (FALLBACK_IGNORE.has(name) || extraIgnoreDirs.includes(name)) return true;
+
+  if (base.startsWith(".") && base !== ".env.example" && !ALLOWED_DOT_DIRS.has(base)) {
+    return true;
+  }
 
   if (!useGit) return false;
 
-  const relative = name;
-  const result = exec(`git check-ignore -q -- "${relative}"`, cwd);
+  const quoted = relativePath.replace(/"/g, '\\"');
+  const result = exec(`git check-ignore -q -- "${quoted}"`, cwd);
   if (result.ok) return true;
 
   if (isDir) {
-    const nested = exec(`git check-ignore -q -- "${relative}/"`, cwd);
+    const nested = exec(`git check-ignore -q -- "${quoted}/"`, cwd);
     return nested.ok;
   }
   return false;
