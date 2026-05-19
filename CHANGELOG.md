@@ -14,6 +14,7 @@
 
 - Unknown `--profile` emits a warning
 - Tests for path parsing, gitignore walking, and `check` command
+- `make handoff` / `make handoff-verify` targets; documented `tokenBudget` in config schema and example config
 
 ## 1.4.0
 

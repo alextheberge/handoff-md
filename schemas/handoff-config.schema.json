@@ -1,33 +1,48 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/guvencem/handoff-md/schemas/handoff-config.schema.json",
   "title": "HandoffConfig",
+  "description": "Optional project config for handoff-md (handoff.config.json or .handoffrc). CLI flags override these values.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "format": {
       "type": "string",
-      "enum": ["compact", "standard", "full"]
+      "enum": ["compact", "standard", "full"],
+      "description": "Output density. Affects default per-section token budgets and total size cap."
     },
     "profile": {
       "type": "string",
-      "enum": ["default", "cursor", "ci", "pr"]
+      "enum": ["default", "cursor", "ci", "pr"],
+      "description": "Preset section toggles and shrink level (e.g. ci uses a tighter layout)."
     },
-    "output": { "type": "string" },
-    "overlay": { "type": "string" },
+    "output": {
+      "type": "string",
+      "description": "Path to write HANDOFF.md (default: HANDOFF.md in project root)."
+    },
+    "overlay": {
+      "type": "string",
+      "description": "Markdown file merged into the ## Notes section (default: .handoff.overlay.md)."
+    },
     "ignoreDirs": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "description": "Directory names skipped when walking the repo tree (in addition to gitignore)."
     },
     "ignoreFiles": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "description": "File names skipped during analysis."
     },
     "configFiles": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "description": "Extra config files to surface in the ## Config section."
     },
     "sections": {
       "type": "object",
+      "description": "Enable or disable HANDOFF sections by id.",
+      "additionalProperties": false,
       "properties": {
         "git": { "type": "boolean" },
         "todos": { "type": "boolean" },
@@ -38,15 +53,44 @@
         "workspace": { "type": "boolean" },
         "ci": { "type": "boolean" },
         "scripts": { "type": "boolean" },
-        "now": { "type": "boolean" },
-        "notes": { "type": "boolean" },
-        "github": { "type": "boolean" }
+        "now": { "type": "boolean", "description": "## Right now briefing bullets." },
+        "notes": { "type": "boolean", "description": "Human overlay (## Notes)." },
+        "github": { "type": "boolean", "description": "## PR context via gh CLI when available." }
       }
     },
     "tokenBudget": {
       "type": "object",
-      "additionalProperties": { "type": "number" }
+      "description": "Override per-section token limits for the active format. Values are approximate token counts (chars ÷ 4); sections truncate with an ellipsis when over budget. Keys match internal renderer section ids.",
+      "propertyNames": {
+        "enum": [
+          "header",
+          "now",
+          "notes",
+          "stack",
+          "structure",
+          "conventions",
+          "activity",
+          "state",
+          "issues",
+          "env",
+          "config",
+          "workspace",
+          "ci",
+          "scripts",
+          "pr",
+          "warnings"
+        ]
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10000,
+        "description": "Max estimated tokens for this section before truncation."
+      }
     },
-    "github": { "type": "boolean" }
+    "github": {
+      "type": "boolean",
+      "description": "Deprecated alias for sections.github; prefer sections.github."
+    }
   }
 }

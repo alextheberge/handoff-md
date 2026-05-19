@@ -58,8 +58,9 @@ help: ## Show this help
 	@printf '  make test TEST_NAME="parses commits"\n'
 	@printf '  make test-watch TEST_FILE=renderer\n\n'
 	@printf '%bCLI examples:%b\n' "$(YELLOW)" "$(RESET)"
+	@printf '  make handoff              # write HANDOFF.md (this repo)\n'
+	@printf '  make handoff-verify       # regenerate + handoff-md check\n'
 	@printf '  make run REPO=. FORMAT=compact\n'
-	@printf '  make handoff-self\n'
 	@printf '  make check-handoff REPO=.\n'
 
 # ------------------------------------------------------------------------------
@@ -223,9 +224,14 @@ run-write: build ## Write HANDOFF.md to REPO
 	$(NODE) $(DIST)/index.js $(REPO) -f $(FORMAT) \
 		$(if $(PROFILE),-p $(PROFILE),)
 
-.PHONY: handoff-self
-handoff-self: build ## Generate HANDOFF.md for this repo
-	$(NODE) $(DIST)/index.js . -f standard
+.PHONY: handoff handoff-self handoff-verify
+handoff: build ## Write HANDOFF.md under REPO (default: this repo)
+	$(NODE) $(DIST)/index.js $(REPO) -f $(FORMAT) \
+		$(if $(PROFILE),-p $(PROFILE),)
+
+handoff-self: handoff ## Alias for handoff (repo root)
+
+handoff-verify: handoff check-handoff ## Regenerate HANDOFF.md then run check
 
 .PHONY: check-handoff
 check-handoff: build ## Run handoff-md check on REPO

@@ -71,9 +71,15 @@ Add `.handoff/` to your `.gitignore` (init does this with `--yes`).
   "profile": "cursor",
   "overlay": ".handoff.overlay.md",
   "ignoreDirs": ["generated"],
-  "github": false
+  "sections": { "github": false },
+  "tokenBudget": {
+    "activity": 500,
+    "structure": 300
+  }
 }
 ```
+
+Per-section `tokenBudget` keys (`header`, `now`, `stack`, `activity`, …) override the defaults for your chosen `format`. See [schemas/handoff-config.schema.json](schemas/handoff-config.schema.json) and [examples/handoff.config.json](examples/handoff.config.json).
 
 ## Library API
 
@@ -102,6 +108,8 @@ HANDOFF complements CLAUDE.md, AGENTS.md, and `.cursor/rules`.
 ```bash
 make install
 make check          # lint + typecheck + test
+make handoff        # regenerate HANDOFF.md for this repo
+make handoff-verify # regenerate + handoff-md check
 make test           # run all tests
 make test-watch     # watch mode
 make test TEST_FILE=git   # filter by file name

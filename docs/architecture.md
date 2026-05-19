@@ -29,6 +29,8 @@ Each analyzer is a pure function `(cwd, options?) → data` plus optional warnin
 
 Merge order: defaults → `handoff.config.json` / `.handoffrc` → CLI flags.
 
+Optional `tokenBudget` in config overrides per-section limits (see `schemas/handoff-config.schema.json`). Local workflow: `make handoff` then `make handoff-verify`.
+
 ## Library usage
 
 ```typescript

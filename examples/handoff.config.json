@@ -1,0 +1,13 @@
+{
+  "format": "standard",
+  "profile": "cursor",
+  "overlay": ".handoff.overlay.md",
+  "ignoreDirs": ["generated"],
+  "sections": {
+    "github": false
+  },
+  "tokenBudget": {
+    "activity": 500,
+    "structure": 300
+  }
+}
