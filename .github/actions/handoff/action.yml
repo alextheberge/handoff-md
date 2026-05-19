@@ -1,0 +1,24 @@
+name: Generate HANDOFF
+description: Generate HANDOFF.md for AI context in CI
+inputs:
+  path:
+    description: Repository path (relative to workspace)
+    required: false
+    default: .
+  format:
+    description: Output format (compact, standard, full)
+    required: false
+    default: standard
+  output:
+    description: Output file path
+    required: false
+    default: HANDOFF.md
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - shell: bash
+      working-directory: ${{ inputs.path }}
+      run: npx handoff-md -f "${{ inputs.format }}" -o "${{ inputs.output }}"

@@ -1,17 +1,41 @@
 {
   "name": "handoff-md",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "One command to generate a portable project context for any AI model. Analyze your repo, generate HANDOFF.md.",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "handoff-md": "dist/index.js",
-    "handoff": "dist/index.js"
+    "handoff": "dist/index.js",
+    "handoff-mcp": "dist/mcp/server.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cli": {
+      "default": "./dist/cli.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "handoff-spec.md",
+    "schemas/"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "prepublishOnly": "npm run build"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check src test",
+    "lint:fix": "biome check --write src test",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "keywords": [
     "ai",
@@ -31,15 +55,17 @@
     "url": "https://github.com/guvencem/handoff-md.git"
   },
   "homepage": "https://github.com/guvencem/handoff-md#readme",
-  "files": [
-    "dist/"
-  ],
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/node": "^25.3.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.5"
   },
   "dependencies": {
     "clipboardy": "^5.3.1",
     "commander": "^14.0.3"
+  },
+  "optionalDependencies": {
+    "gpt-tokenizer": "^2.8.1"
   }
 }

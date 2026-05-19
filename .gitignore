@@ -1,5 +1,5 @@
 node_modules/
 dist/
 HANDOFF.md
+.handoff/
 .claude/
-handoff-spec.md

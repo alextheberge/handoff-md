@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HandoffJsonOutput",
+  "type": "object",
+  "required": ["markdown", "tokenEstimate", "warnings", "meta"],
+  "properties": {
+    "markdown": { "type": "string" },
+    "tokenEstimate": { "type": "number" },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["projectName", "outputPath", "format"],
+      "properties": {
+        "projectName": { "type": "string" },
+        "outputPath": { "type": "string" },
+        "format": {
+          "type": "string",
+          "enum": ["compact", "standard", "full"]
+        }
+      }
+    }
+  }
+}
