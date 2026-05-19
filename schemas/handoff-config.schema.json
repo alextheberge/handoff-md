@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HandoffConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": ["compact", "standard", "full"]
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["default", "cursor", "ci", "pr"]
+    },
+    "output": { "type": "string" },
+    "overlay": { "type": "string" },
+    "ignoreDirs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "ignoreFiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "configFiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "sections": {
+      "type": "object",
+      "properties": {
+        "git": { "type": "boolean" },
+        "todos": { "type": "boolean" },
+        "env": { "type": "boolean" },
+        "stack": { "type": "boolean" },
+        "structure": { "type": "boolean" },
+        "conventions": { "type": "boolean" },
+        "workspace": { "type": "boolean" },
+        "ci": { "type": "boolean" },
+        "scripts": { "type": "boolean" },
+        "now": { "type": "boolean" },
+        "notes": { "type": "boolean" },
+        "github": { "type": "boolean" }
+      }
+    },
+    "tokenBudget": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "github": { "type": "boolean" }
+  }
+}

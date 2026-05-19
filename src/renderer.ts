@@ -1,5 +1,19 @@
 import { treeToString } from "./analyzers/structure";
-import { type AssembledContext, getBudget, truncateToTokenBudget } from "./assembler";
+import {
+  type AssembledContext,
+  SECTION_DROP_ORDER,
+  type SectionId,
+  estimateTokens,
+  getBudget,
+  truncateToTokenBudget,
+} from "./assembler";
+import { FORMAT_TOTAL_TOKEN_CAP } from "./spec";
+import { synthesizeNow } from "./synthesis/now";
+
+interface RenderedSection {
+  id: SectionId;
+  content: string;
+}
 
 function isRecentMerge(isoDate: string, days = 14): boolean {
   const parsed = Date.parse(isoDate);
@@ -7,9 +21,10 @@ function isRecentMerge(isoDate: string, days = 14): boolean {
   return parsed >= Date.now() - days * 24 * 60 * 60 * 1000;
 }
 
-export function renderHandoff(ctx: AssembledContext): string {
+function buildSections(ctx: AssembledContext): RenderedSection[] {
   const budget = getBudget(ctx.format);
-  const sections: string[] = [];
+  const shrink = ctx.shrinkLevel;
+  const out: RenderedSection[] = [];
 
   const lastCommit = ctx.git?.recentCommits[0];
   let header = `# HANDOFF — ${ctx.projectName}\n`;
@@ -24,7 +39,23 @@ export function renderHandoff(ctx: AssembledContext): string {
     }
     header += "\n";
   }
-  sections.push(truncateToTokenBudget(header, budget.header));
+  out.push({ id: "header", content: truncateToTokenBudget(header, budget.header) });
+
+  if (ctx.sections.now) {
+    const bullets = synthesizeNow(ctx);
+    if (bullets.length > 0) {
+      let nowSection = "## Right now\n";
+      for (const b of bullets) {
+        nowSection += `- ${b.text}\n`;
+      }
+      out.push({ id: "now", content: truncateToTokenBudget(nowSection, budget.now) });
+    }
+  }
+
+  if (ctx.sections.notes && ctx.overlay) {
+    const notes = `## Notes\n${ctx.overlay}\n`;
+    out.push({ id: "notes", content: truncateToTokenBudget(notes, budget.notes) });
+  }
 
   if (ctx.sections.stack) {
     let stackSection = "## Stack\n";
@@ -44,46 +75,64 @@ export function renderHandoff(ctx: AssembledContext): string {
     if (ctx.stack.linter) extras.push(`Lint: ${ctx.stack.linter}`);
     if (ctx.stack.moduleType) extras.push(`Module: ${ctx.stack.moduleType}`);
     if (ctx.stack.engines) extras.push(`Engines: ${ctx.stack.engines}`);
-    if (extras.length > 0) {
-      stackSection += `${extras.join(" | ")}\n`;
-    }
-    sections.push(truncateToTokenBudget(stackSection, budget.stack));
+    if (extras.length > 0) stackSection += `${extras.join(" | ")}\n`;
+    out.push({ id: "stack", content: truncateToTokenBudget(stackSection, budget.stack) });
   }
 
   if (ctx.sections.scripts && ctx.scripts && ctx.scripts.scripts.length > 0) {
+    const limit = shrink >= 1 ? 3 : 5;
     let scriptsSection = "## Scripts\n";
-    for (const s of ctx.scripts.scripts) {
+    for (const s of ctx.scripts.scripts.slice(0, limit)) {
       scriptsSection += `- \`${s.name}\`: ${s.command.slice(0, 80)}\n`;
     }
-    sections.push(truncateToTokenBudget(scriptsSection, budget.scripts));
+    out.push({ id: "scripts", content: truncateToTokenBudget(scriptsSection, budget.scripts) });
   }
 
   if (ctx.sections.workspace && ctx.workspace) {
     let wsSection = "## Workspace\n";
     wsSection += `${ctx.workspace.type}\n`;
     if (ctx.workspace.packages.length > 0) {
-      wsSection += `Packages: ${ctx.workspace.packages.join(", ")}\n`;
+      const pkgs = [...ctx.workspace.packages].sort().slice(0, shrink >= 1 ? 8 : 15);
+      wsSection += `Packages: ${pkgs.join(", ")}\n`;
     }
-    sections.push(truncateToTokenBudget(wsSection, budget.workspace));
+    out.push({ id: "workspace", content: truncateToTokenBudget(wsSection, budget.workspace) });
   }
 
   if (ctx.sections.ci && ctx.ci) {
     let ciSection = "## CI\n";
-    ciSection += `Workflows: ${ctx.ci.workflows.join(", ")}\n`;
+    const workflows = [...ctx.ci.workflows].sort();
+    ciSection += `Workflows: ${workflows.join(", ")}\n`;
     if (ctx.ci.jobs.length > 0) {
-      ciSection += `Jobs: ${ctx.ci.jobs.join(", ")}\n`;
+      const jobs = [...ctx.ci.jobs].sort().slice(0, shrink >= 1 ? 5 : 10);
+      ciSection += `Jobs: ${jobs.join(", ")}\n`;
     }
-    sections.push(truncateToTokenBudget(ciSection, budget.ci));
+    out.push({ id: "ci", content: truncateToTokenBudget(ciSection, budget.ci) });
   }
 
-  if (ctx.sections.structure && ctx.structure.tree.length > 0) {
+  if (ctx.sections.github && ctx.github) {
+    let prSection = "## PR context\n";
+    if (ctx.github.prTitle) {
+      prSection += `- PR: ${ctx.github.prTitle}`;
+      if (ctx.github.prUrl) prSection += ` (${ctx.github.prUrl})`;
+      prSection += "\n";
+    }
+    if (ctx.github.issues.length > 0) {
+      for (const issue of ctx.github.issues.slice(0, 3)) {
+        prSection += `- Issue #${issue.number}: ${issue.title}\n`;
+      }
+    }
+    out.push({ id: "pr", content: truncateToTokenBudget(prSection, budget.pr) });
+  }
+
+  if (ctx.sections.structure && ctx.structure.tree.length > 0 && shrink < 2) {
     let structSection = "## Structure\n```\n";
     structSection += treeToString(ctx.structure.tree);
     structSection += "\n```\n";
     if (ctx.structure.entryPoints.length > 0) {
-      structSection += `Entry points: ${ctx.structure.entryPoints.join(", ")}\n`;
+      const eps = [...ctx.structure.entryPoints].sort();
+      structSection += `Entry points: ${eps.join(", ")}\n`;
     }
-    sections.push(truncateToTokenBudget(structSection, budget.structure));
+    out.push({ id: "structure", content: truncateToTokenBudget(structSection, budget.structure) });
   }
 
   if (ctx.sections.conventions && (ctx.structure.conventions.length > 0 || ctx.config)) {
@@ -92,47 +141,60 @@ export function renderHandoff(ctx: AssembledContext): string {
       convSection += `- ${conv.category}: ${conv.pattern}\n`;
     }
     if (ctx.config && ctx.config.entries.length > 0) {
-      for (const entry of ctx.config.entries) {
+      const entries = shrink >= 1 ? ctx.config.entries.slice(0, 2) : ctx.config.entries;
+      for (const entry of entries) {
         convSection += `\n### AI Config (${entry.source})\n`;
-        convSection += `${entry.lines.join("\n")}\n`;
+        const lines = shrink >= 1 ? entry.lines.slice(0, 15) : entry.lines;
+        convSection += `${lines.join("\n")}\n`;
       }
     } else if (ctx.config) {
       convSection += `\n### Existing AI Config (from ${ctx.config.configSource})\n`;
       convSection += `${ctx.config.existingInstructions.join("\n")}\n`;
     }
     const configBudget = ctx.config ? budget.config : 0;
-    sections.push(truncateToTokenBudget(convSection, budget.conventions + configBudget));
+    out.push({
+      id: "conventions",
+      content: truncateToTokenBudget(convSection, budget.conventions + configBudget),
+    });
   }
 
   if (ctx.sections.git && ctx.git && ctx.git.recentCommits.length > 0) {
-    const maxCommits = ctx.format === "compact" ? 5 : ctx.format === "standard" ? 10 : 15;
+    const maxCommits =
+      shrink >= 2
+        ? 3
+        : shrink >= 1
+          ? 5
+          : ctx.format === "compact"
+            ? 5
+            : ctx.format === "standard"
+              ? 10
+              : 15;
     let activitySection = "## Recent Activity\n";
-
     if (
       ctx.git.lastMerge &&
       isRecentMerge(ctx.git.lastMerge.date ? `${ctx.git.lastMerge.date}T00:00:00Z` : "")
     ) {
       activitySection += `- Last merge: \`${ctx.git.lastMerge.hash}\` ${ctx.git.lastMerge.message}\n`;
     }
-
     for (const commit of ctx.git.recentCommits.slice(0, maxCommits)) {
       activitySection += `- \`${commit.hash}\` ${commit.message}`;
       if (commit.date) activitySection += ` (${commit.date})`;
-      if (commit.files && commit.files.length > 0 && ctx.format === "full") {
-        activitySection += ` — files: ${commit.files.slice(0, 5).join(", ")}`;
+      if (commit.files && commit.files.length > 0 && ctx.format === "full" && shrink < 1) {
+        const files = [...commit.files].sort().slice(0, 5).join(", ");
+        activitySection += ` — files: ${files}`;
       }
       activitySection += "\n";
     }
-    sections.push(truncateToTokenBudget(activitySection, budget.activity));
+    out.push({ id: "activity", content: truncateToTokenBudget(activitySection, budget.activity) });
   }
 
   if (ctx.sections.git && ctx.git) {
     let stateSection = "## Current State\n";
-
     if (ctx.git.uncommittedChanges.length > 0) {
       stateSection += `**Uncommitted changes (${ctx.git.uncommittedChanges.length} files):**\n`;
-      const maxChanges = ctx.format === "compact" ? 10 : 20;
-      for (const change of ctx.git.uncommittedChanges.slice(0, maxChanges)) {
+      const maxChanges = shrink >= 1 ? 5 : ctx.format === "compact" ? 10 : 20;
+      const changes = [...ctx.git.uncommittedChanges].sort().slice(0, maxChanges);
+      for (const change of changes) {
         stateSection += `- ${change}\n`;
       }
       if (ctx.git.uncommittedChanges.length > maxChanges) {
@@ -141,37 +203,39 @@ export function renderHandoff(ctx: AssembledContext): string {
     } else {
       stateSection += "Working tree is clean.\n";
     }
-
     if (ctx.git.activeBranches.length > 1) {
       stateSection += "\n**Active branches (last 7 days):**\n";
-      for (const branch of ctx.git.activeBranches.slice(0, 5)) {
+      const branches = [...ctx.git.activeBranches]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, shrink >= 1 ? 3 : 5);
+      for (const branch of branches) {
         const current = branch.name === ctx.git.currentBranch ? " ← current" : "";
         stateSection += `- \`${branch.name}\` (${branch.relativeDate})${current}\n`;
       }
     }
-
     if (ctx.git.conflictFiles.length > 0) {
       stateSection += "\n**⚠ Merge conflicts:**\n";
-      for (const file of ctx.git.conflictFiles) {
+      for (const file of [...ctx.git.conflictFiles].sort()) {
         stateSection += `- ${file}\n`;
       }
     }
-
-    sections.push(truncateToTokenBudget(stateSection, budget.state));
+    out.push({ id: "state", content: truncateToTokenBudget(stateSection, budget.state) });
   }
 
   if (ctx.sections.todos && ctx.structure.todos.length > 0) {
     let issuesSection = "## Known Issues\n";
-    for (const todo of ctx.structure.todos) {
+    const todos = ctx.structure.todos.slice(0, shrink >= 1 ? 5 : 10);
+    for (const todo of todos) {
       issuesSection += `- **${todo.type}** \`${todo.file}:${todo.line}\` ${todo.text}\n`;
     }
-    sections.push(truncateToTokenBudget(issuesSection, budget.issues));
+    out.push({ id: "issues", content: truncateToTokenBudget(issuesSection, budget.issues) });
   }
 
   if (ctx.sections.env && ctx.structure.envVars.length > 0) {
+    const vars = [...ctx.structure.envVars].sort();
     let envSection = "## Environment\n";
-    envSection += `Required env vars: \`${ctx.structure.envVars.join("`, `")}\`\n`;
-    sections.push(truncateToTokenBudget(envSection, budget.env));
+    envSection += `Required env vars: \`${vars.join("`, `")}\`\n`;
+    out.push({ id: "env", content: truncateToTokenBudget(envSection, budget.env) });
   }
 
   if (ctx.warnings.length > 0) {
@@ -179,8 +243,39 @@ export function renderHandoff(ctx: AssembledContext): string {
     for (const w of ctx.warnings.slice(0, 5)) {
       warnSection += `- ${w}\n`;
     }
-    sections.push(truncateToTokenBudget(warnSection, budget.warnings));
+    out.push({ id: "warnings", content: truncateToTokenBudget(warnSection, budget.warnings) });
   }
 
-  return sections.join("\n");
+  return out;
+}
+
+function applyTokenCap(
+  sections: RenderedSection[],
+  cap: number,
+  format: AssembledContext["format"],
+): RenderedSection[] {
+  let total = sections.reduce((sum, s) => sum + estimateTokens(s.content), 0);
+  if (total <= cap) return sections;
+
+  const keepOrder = new Map(SECTION_DROP_ORDER[format].map((id, i) => [id, i]));
+  const sorted = [...sections].sort(
+    (a, b) => (keepOrder.get(b.id) ?? 0) - (keepOrder.get(a.id) ?? 0),
+  );
+
+  const dropped = new Set<SectionId>();
+  for (const section of sorted) {
+    if (total <= cap) break;
+    if (section.id === "header" || section.id === "now" || section.id === "stack") continue;
+    dropped.add(section.id);
+    total -= estimateTokens(section.content);
+  }
+
+  return sections.filter((s) => !dropped.has(s.id));
+}
+
+export function renderHandoff(ctx: AssembledContext): string {
+  let sections = buildSections(ctx);
+  const cap = FORMAT_TOTAL_TOKEN_CAP[ctx.format];
+  sections = applyTokenCap(sections, cap, ctx.format);
+  return sections.map((s) => s.content).join("\n");
 }

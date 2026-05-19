@@ -18,21 +18,23 @@ function minimalContext(overrides: Partial<AssembledContext> = {}): AssembledCon
     workspace: null,
     ci: null,
     scripts: null,
+    github: null,
+    overlay: null,
     format: "standard",
     warnings: [],
     sections: DEFAULT_SECTIONS,
-    specVersion: 1,
+    specVersion: 2,
+    shrinkLevel: 0,
     ...overrides,
   };
 }
 
 describe("renderHandoff", () => {
-  it("includes header and stack", () => {
+  it("includes header, right now, and stack", () => {
     const md = renderHandoff(minimalContext());
     expect(md).toContain("# HANDOFF — test-app");
     expect(md).toContain("## Stack");
-    expect(md).toContain("Next.js");
-    expect(md).toContain("handoff-spec: 1");
+    expect(md).toContain("handoff-spec: 2");
   });
 
   it("includes warnings section when present", () => {

@@ -11,15 +11,25 @@ One command to generate a portable AI context file from any repo.
 
 ## Problem
 
-Every time you switch AI models — Claude to GPT, Cursor to Copilot, or even between sessions — the new model starts from zero. **handoff-md** analyzes your repo and writes current stack, structure, git state, TODOs, and existing AI rules into `HANDOFF.md`.
+Every time you switch AI models — Claude to GPT, Cursor to Copilot, or even between sessions — the new model starts from zero. **handoff-md** analyzes your repo and writes a **briefing** — not a data dump — into `HANDOFF.md`.
 
 ## Install
 
 ```bash
 npx handoff-md
+# or set up a project
+npx handoff-md init
 ```
 
 Requires Node.js 18+ and git. No API keys.
+
+## What's in HANDOFF.md
+
+- **Right now** — synthesized bullets: active edits, branch drift, conflicts, recent focus
+- **Stack** — language, framework, tooling
+- **Current state** — uncommitted changes, branches
+- **Notes** — optional human overlay (`.handoff.overlay.md`)
+- Plus structure, conventions, CI, scripts, TODOs, env vars
 
 ## CLI
 
@@ -28,29 +38,40 @@ Requires Node.js 18+ and git. No API keys.
 | `[path]` | Target repository (default: `.`) |
 | `-c, --copy` | Copy output to clipboard |
 | `-s, --stdout` | Print to stdout |
-| `-o, --output <path>` | Custom output path |
-| `-f, --format <level>` | `compact`, `standard`, `full` |
-| `--dry-run` | Show token estimate without writing |
-| `--json` | Machine-readable JSON |
-| `--no-git` / `--no-todos` | Disable sections |
-| `--fail-on-warnings` | Exit 1 if analyzers warn |
-| `--install-hook` | Git post-commit hook |
-| `handoff-md watch` | Regenerate on file changes |
+| `-f, --format <level>` | `compact` (~1.5K), `standard` (~3K), `full` (~5K) tokens |
+| `-p, --profile <name>` | `cursor`, `ci`, `pr`, or `default` |
+| `--no-cache` | Force full re-analysis |
+| `--no-now` | Skip briefing section |
+| `--frozen-time <iso>` | Reproducible timestamps (CI) |
+| `handoff-md init` | Create HANDOFF + update AGENTS.md |
+| `handoff-md check` | CI quality gate (tokens, age, spec) |
+| `handoff-md watch` | Regenerate on save (uses cache) |
 | `handoff-md diff` | Changes since last run |
-| `handoff-md validate` | Validate HANDOFF.md sections |
+| `handoff-md validate` | Required sections exist |
 
-Bins: `handoff-md`, `handoff`, `handoff-mcp` (MCP stdio server).
+Bins: `handoff-md`, `handoff`, `handoff-mcp`.
+
+## Recommended setup
+
+```bash
+npx handoff-md init --yes --hook
+# Add to CI (see .github/workflows/handoff-check.yml)
+npx handoff-md check . --max-age 7
+```
+
+Add `.handoff/` to your `.gitignore` (init does this with `--yes`).
 
 ## Configuration
 
-Optional `handoff.config.json` or `.handoffrc` in the repo root:
+`handoff.config.json` or `.handoffrc`:
 
 ```json
 {
   "format": "standard",
-  "output": "HANDOFF.md",
+  "profile": "cursor",
+  "overlay": ".handoff.overlay.md",
   "ignoreDirs": ["generated"],
-  "sections": { "ci": true, "workspace": true }
+  "github": false
 }
 ```
 
@@ -59,9 +80,10 @@ Optional `handoff.config.json` or `.handoffrc` in the repo root:
 ```typescript
 import { runHandoff } from 'handoff-md';
 
-const { markdown, tokenEstimate, warnings } = runHandoff({
+const { markdown, tokenEstimate, warnings, meta } = runHandoff({
   cwd: process.cwd(),
   format: 'standard',
+  profile: 'cursor',
 });
 ```
 
@@ -71,19 +93,14 @@ const { markdown, tokenEstimate, warnings } = runHandoff({
 |---|---|---|
 | **Updates** | Auto-generated from repo state | Manually maintained |
 | **Portability** | Any model | Claude-centric |
-| **Scope** | Git, TODOs, CI, monorepo, scripts | Static rules |
+| **Scope** | Live git state + briefing | Static rules |
 
-HANDOFF complements CLAUDE.md, AGENTS.md, and `.cursor/rules` — handoff-md merges them into the output.
+HANDOFF complements CLAUDE.md, AGENTS.md, and `.cursor/rules`.
 
 ## Contributing
 
 ```bash
-git clone https://github.com/guvencem/handoff-md.git
-cd handoff-md
-npm install
-npm run build
-npm test
-node dist/index.js
+npm install && npm run build && npm test
 ```
 
 See [docs/architecture.md](docs/architecture.md) and [handoff-spec.md](handoff-spec.md).

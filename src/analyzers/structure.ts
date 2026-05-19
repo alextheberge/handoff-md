@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { shouldSkipEntry } from "../utils/ignore";
 
 export interface DirectoryEntry {
   name: string;
@@ -88,8 +89,9 @@ export function buildTree(
     });
 
     for (const entry of sorted) {
-      if (ignoreDirs.has(entry.name) || IGNORE_FILES.has(entry.name)) continue;
-      if (entry.name.startsWith(".") && entry.name !== ".env.example") continue;
+      if (IGNORE_FILES.has(entry.name)) continue;
+      if (ignoreDirs.has(entry.name)) continue;
+      if (shouldSkipEntry(cwd, dir, entry.name, entry.isDirectory(), extraIgnoreDirs)) continue;
 
       if (entry.isDirectory()) {
         const children = walk(path.join(dir, entry.name), depth + 1);
@@ -142,7 +144,7 @@ export function detectConventions(cwd: string): Convention[] {
 
   // Collect filenames from src/ or top-level
   const srcDir = fs.existsSync(path.join(cwd, "src")) ? path.join(cwd, "src") : cwd;
-  const files = collectFiles(srcDir, 3);
+  const files = collectFiles(srcDir, 3, 0, cwd);
   const basenames = files.map((f) => path.basename(f, path.extname(f)));
 
   // Naming pattern detection
@@ -219,7 +221,7 @@ export function findTodos(cwd: string, maxResults = 10): Todo[] {
   const roots = todoScanRoots(cwd);
   const files: string[] = [];
   for (const root of roots) {
-    files.push(...collectFiles(root, 4));
+    files.push(...collectFiles(root, 4, 0, cwd));
   }
 
   const codeExtensions = new Set([
@@ -346,9 +348,10 @@ export function analyzeStructure(cwd: string, options: StructureOptions = {}): S
 
 // Helpers
 
-function collectFiles(dir: string, maxDepth: number, depth = 0): string[] {
+function collectFiles(dir: string, maxDepth: number, depth = 0, repoRoot?: string): string[] {
   if (depth > maxDepth) return [];
   const files: string[] = [];
+  const root = repoRoot ?? dir;
 
   let entries: fs.Dirent[];
   try {
@@ -358,11 +361,12 @@ function collectFiles(dir: string, maxDepth: number, depth = 0): string[] {
   }
 
   for (const entry of entries) {
-    if (IGNORE_DIRS.has(entry.name) || entry.name.startsWith(".")) continue;
+    if (IGNORE_DIRS.has(entry.name)) continue;
+    if (shouldSkipEntry(root, dir, entry.name, entry.isDirectory())) continue;
 
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...collectFiles(fullPath, maxDepth, depth + 1));
+      files.push(...collectFiles(fullPath, maxDepth, depth + 1, root));
     } else {
       files.push(fullPath);
     }

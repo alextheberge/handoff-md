@@ -12,7 +12,11 @@ function send(msg: object): void {
 }
 
 async function handleRequest(line: string): Promise<void> {
-  let req: { id?: number; method?: string; params?: Record<string, string> };
+  let req: {
+    id?: number | string;
+    method?: string;
+    params?: { name?: string; arguments?: Record<string, string> };
+  };
   try {
     req = JSON.parse(line);
   } catch {
@@ -41,7 +45,7 @@ async function handleRequest(line: string): Promise<void> {
       result: {
         tools: [
           {
-            name: "generate_handoff",
+            name: "get_handoff_context",
             description: "Generate HANDOFF.md context for a repository",
             inputSchema: {
               type: "object",
@@ -50,6 +54,10 @@ async function handleRequest(line: string): Promise<void> {
                 format: {
                   type: "string",
                   enum: ["compact", "standard", "full"],
+                },
+                profile: {
+                  type: "string",
+                  enum: ["default", "cursor", "ci", "pr"],
                 },
               },
             },
@@ -61,10 +69,14 @@ async function handleRequest(line: string): Promise<void> {
   }
 
   if (req.method === "tools/call") {
-    const target = req.params?.path || repoPath;
-    const format = req.params?.format;
+    const args = req.params?.arguments ?? {};
+    const target = args.path || repoPath;
     try {
-      const result = runHandoff({ cwd: target, format });
+      const result = runHandoff({
+        cwd: target,
+        format: args.format,
+        profile: args.profile,
+      });
       send({
         jsonrpc: "2.0",
         id,

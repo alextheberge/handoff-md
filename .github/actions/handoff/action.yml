@@ -1,5 +1,5 @@
 name: Generate HANDOFF
-description: Generate HANDOFF.md for AI context in CI
+description: Generate HANDOFF.md and optionally upload as artifact
 inputs:
   path:
     description: Repository path (relative to workspace)
@@ -9,16 +9,37 @@ inputs:
     description: Output format (compact, standard, full)
     required: false
     default: standard
+  profile:
+    description: Profile preset (default, cursor, ci, pr)
+    required: false
+    default: default
   output:
     description: Output file path
     required: false
     default: HANDOFF.md
+  upload-artifact:
+    description: Upload HANDOFF.md as workflow artifact
+    required: false
+    default: "true"
+  max-age:
+    description: Fail check if HANDOFF older than N days (0 = skip)
+    required: false
+    default: "0"
 runs:
   using: composite
   steps:
     - uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: "20"
     - shell: bash
       working-directory: ${{ inputs.path }}
-      run: npx handoff-md -f "${{ inputs.format }}" -o "${{ inputs.output }}"
+      run: npx handoff-md -f "${{ inputs.format }}" -p "${{ inputs.profile }}" -o "${{ inputs.output }}" --no-cache
+    - shell: bash
+      if: inputs.max-age != '0'
+      working-directory: ${{ inputs.path }}
+      run: npx handoff-md check . --max-age ${{ inputs.max-age }}
+    - uses: actions/upload-artifact@v4
+      if: inputs.upload-artifact == 'true'
+      with:
+        name: HANDOFF.md
+        path: ${{ inputs.path }}/${{ inputs.output }}

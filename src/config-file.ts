@@ -1,31 +1,59 @@
 import * as fs from "fs";
 import * as path from "path";
 import { DEFAULT_SECTIONS, type FormatLevel, type SectionToggles } from "./assembler";
+import type { ProfileName } from "./profiles";
 
 export interface HandoffConfig {
   format?: FormatLevel;
+  profile?: ProfileName | string;
   output?: string;
+  overlay?: string;
   ignoreDirs?: string[];
   ignoreFiles?: string[];
   configFiles?: string[];
   sections?: Partial<SectionToggles>;
   tokenBudget?: Partial<Record<string, number>>;
+  github?: boolean;
 }
 
 const CONFIG_NAMES = ["handoff.config.json", ".handoffrc.json", ".handoffrc"];
 
-export function loadHandoffConfig(cwd: string): HandoffConfig {
+const KNOWN_KEYS = new Set([
+  "format",
+  "profile",
+  "output",
+  "overlay",
+  "ignoreDirs",
+  "ignoreFiles",
+  "configFiles",
+  "sections",
+  "tokenBudget",
+  "github",
+]);
+
+export function loadHandoffConfig(
+  cwd: string,
+  strict = false,
+): { config: HandoffConfig; warnings: string[] } {
+  const warnings: string[] = [];
   for (const name of CONFIG_NAMES) {
     const fullPath = path.join(cwd, name);
     if (!fs.existsSync(fullPath)) continue;
     try {
-      const raw = fs.readFileSync(fullPath, "utf-8");
-      return JSON.parse(raw) as HandoffConfig;
+      const raw = JSON.parse(fs.readFileSync(fullPath, "utf-8")) as Record<string, unknown>;
+      if (strict) {
+        for (const key of Object.keys(raw)) {
+          if (!KNOWN_KEYS.has(key)) {
+            warnings.push(`Unknown config key: ${key}`);
+          }
+        }
+      }
+      return { config: raw as HandoffConfig, warnings };
     } catch {
-      // try next
+      warnings.push(`Failed to parse ${name}`);
     }
   }
-  return {};
+  return { config: {}, warnings };
 }
 
 export function mergeSections(config?: Partial<SectionToggles>): SectionToggles {
