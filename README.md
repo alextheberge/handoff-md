@@ -100,8 +100,14 @@ HANDOFF complements CLAUDE.md, AGENTS.md, and `.cursor/rules`.
 ## Contributing
 
 ```bash
-npm install && npm run build && npm test
+make install
+make check          # lint + typecheck + test
+make test           # run all tests
+make test-watch     # watch mode
+make test TEST_FILE=git   # filter by file name
 ```
+
+Or with npm: `npm install && npm run build && npm test`. Run `make help` for all targets.
 
 See [docs/architecture.md](docs/architecture.md) and [handoff-spec.md](handoff-spec.md).
 
