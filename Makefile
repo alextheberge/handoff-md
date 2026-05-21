@@ -13,6 +13,8 @@ SHELL := /bin/bash
 NODE        ?= node
 NPM         ?= npm
 NPX         ?= npx
+BUN         ?= $(HOME)/.bun/bin/bun
+BUN_TARGET  ?= bun-darwin-arm64
 
 PKG         := handoff-md
 DIST        := dist
@@ -248,6 +250,25 @@ diff-handoff: build ## Show diff since last handoff in REPO
 .PHONY: init-handoff
 init-handoff: build ## Run handoff-md init in REPO (dry-run: add INIT_ARGS=--dry-run)
 	$(NODE) $(DIST)/index.js init $(REPO) $(INIT_ARGS)
+
+# ------------------------------------------------------------------------------
+# Standalone binaries (requires Bun: https://bun.sh)
+# ------------------------------------------------------------------------------
+
+.PHONY: binary
+binary: build ## Compile dist/bin/handoff-md and handoff-mcp (BUN_TARGET=$(BUN_TARGET))
+	@command -v $(BUN) >/dev/null || { echo "Install Bun: curl -fsSL https://bun.sh/install | bash"; exit 1; }
+	mkdir -p $(DIST)/bin
+	$(BUN) build $(DIST)/index.js --compile --target=$(BUN_TARGET) --outfile $(DIST)/bin/handoff-md
+	$(BUN) build $(DIST)/mcp/server.js --compile --target=$(BUN_TARGET) --outfile $(DIST)/bin/handoff-mcp
+	@printf '%bBinary: $(DIST)/bin/handoff-md ($(BUN_TARGET))%b\n' "$(GREEN)" "$(RESET)"
+	@ls -lh $(DIST)/bin/handoff-md $(DIST)/bin/handoff-mcp
+
+.PHONY: binary-install
+binary-install: binary ## Copy binaries to ~/.local/bin (add to PATH)
+	mkdir -p $(HOME)/.local/bin
+	cp $(DIST)/bin/handoff-md $(DIST)/bin/handoff-mcp $(HOME)/.local/bin/
+	@printf '%bInstalled: $(HOME)/.local/bin/handoff-md%b\n' "$(GREEN)" "$(RESET)"
 
 # ------------------------------------------------------------------------------
 # Release helpers
